@@ -1,0 +1,18 @@
+    // 기존의 축구팀 스쿼드 맞추고 오버롤로 겨루는 게임이 아니라
+    // 롤에서 포지션별 프로 플레이어의 1:1 라인전 컵셉으로 한다.
+    // 예를들어 유저는 랜덤하게 미드 라이너 1명을 랜덤한 스텟으로 제공 받고
+    // 다른 유저도 마찬가지의 미드 라이너 1명을 랜덤하게 스텟으로 제공 받고 서로 라인전을 치른다.
+    // 이 때 각 세부 스텟에 따라 승패가 결정되는 방식이다.
+    // 랜덤 숫자를 chainlink VRF가 사용되고, 나중에는 automation도 사용할 예정.
+    // NFT 이용한 선수 플랫폼은 차후 NFT 프로젝트랑 토큰 부분 강의를 듣고 하기로 하고 여기서는 간단히 미드 라인전만 해본다.
+    /*
+    Solo Kill Potential: 상대 미드라이너와의 1:1 상황에서 솔로 킬을 할 수 있는 잠재력.
+    Lane Dominance Potential: 상대 미드라이너를 상대로 라인에서 우위를 점할 가능성.
+    Gank Resistance Ability: 상대 정글러의 갱킹을 효과적으로 방어할 수 있는 능력.
+    Tower Pressure Capability: 상대 타워에 효과적으로 압박을 가할 수 있는 잠재력.
+    Teamfight Influence vs. Enemy Mid: 팀 교전 중 상대 미드라이너를 상대로 얼마나 큰 영향을 미칠 수 있는지.
+    CS Advantage Potential: 동일한 시간 내에 상대 미드라이너보다 더 많은 CS를 확보할 가능성.
+    Gold Lead Potential: 상대 미드라이너와의 골드 차이를 벌릴 수 있는 잠재력.
+    Roaming Effectiveness: 아군 정글러와 협력하여 적 미드라이너에게 압박을 가할 수 있는 잠재력.
+    Dodge Success Probability: 상대 미드라이너의 주요 스킬을 회피할 가능성.
+     */
