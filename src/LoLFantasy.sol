@@ -27,6 +27,8 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
 
 contract LoLFantasy is VRFConsumerBaseV2Plus {
     // errors
+    error MidLanerAlreadyCreated();
+
     // interfaces, libraries, contracts
 
     // Type declarations
@@ -74,10 +76,9 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
 
     function createMidLaner() public returns (MidLaner memory) {
         // require: dont let the same address call this function twice
-        require(
-            s_mapSummonerToMidLaner[msg.sender].length == 0,
-            "LoLFantasy: Already called"
-        );
+        if (s_mapSummonerToMidLaner[msg.sender].soloKillPotential != 0) {
+            revert MidLanerAlreadyCreated();
+        }
 
         // kick off VRF request
         requestId = s_vrfCoordinator.requestRandomWords(
