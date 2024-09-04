@@ -65,10 +65,11 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     error LoLFantasy__NotCreatedMidLaner();
     error LoLFantasy__NotOwner();
     error LoLFantasy__NotSummoner();
-    error LoLFantasy__NotPariticipant();
+    error LoLFantasy__NotParticipant();
     error LoLFantasy__NotEnoughJoiningFee();
     error LoLFantasy__AlreadyJoinedSeason();
     error LoLFantasy__UnknownRequestId();
+    error LoLFantasy__NotEnoughParticipants();
 
     enum LoLFantasyState {
         OPEN,
@@ -189,8 +190,15 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
                 s_summoners[randomWords[0] % s_summoners.length]
             );
 
-            // clear the participants
-            s_participants = new address[](0);
+            // clear the mapParticipantToStatus
+            for (uint i = 0; i < s_participants.length; i++) {
+                delete s_mapParticipantToStatus[s_participants[i]];
+            }
+
+            // clear the participants array
+            delete s_participants;
+            // s_participants = new address[](0);
+
             // clear prize pool
             s_prize = 0;
 
@@ -254,7 +262,11 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     function competeSeason() public {
         // require: only participants can compete
         if (!s_mapParticipantToStatus[msg.sender]) {
-            revert LoLFantasy__NotPariticipant();
+            revert LoLFantasy__NotParticipant();
+        }
+        // require: can only run when participants are more than 1
+        if (s_participants.length <= 1) {
+            revert LoLFantasy__NotEnoughParticipants();
         }
 
         // out of all the paricipants pick 1 random oponents to compete
