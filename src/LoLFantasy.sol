@@ -211,6 +211,10 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
         if (s_participants.length <= 1) {
             revert LoLFantasy__NotEnoughParticipants();
         }
+        // require: can only call when state is OPEN
+        if (s_gameState != LoLFantasyState.OPEN) {
+            revert LoLFantasy__GameStateIsNotOpen();
+        }
 
         s_gameState = LoLFantasyState.CLOSED;
 
