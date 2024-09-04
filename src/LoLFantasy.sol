@@ -70,6 +70,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     error LoLFantasy__AlreadyJoinedSeason();
     error LoLFantasy__UnknownRequestId();
     error LoLFantasy__NotEnoughParticipants();
+    error LoLFantasy__TransferFailed();
 
     enum LoLFantasyState {
         OPEN,
@@ -88,7 +89,6 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     LoLFantasyState private s_gameState;
     address[] private s_summoners;
     address[] private s_participants;
-    uint256 private s_prize;
 
     // requestId => summoner
     mapping(uint256 => address) private s_mapRequestIdToSummoner;
@@ -121,7 +121,6 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             revert LoLFantasy__AlreadyCreatedMidLaner();
         }
         // require: can only call when state is OPEN
-        require(s_gameState == LoLFantasyState.OPEN, "Game is not open");
         if (s_gameState != LoLFantasyState.OPEN) {
             revert LoLFantasy__GameStateIsNotOpen();
         }
@@ -179,40 +178,71 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             s_gameState = LoLFantasyState.OPEN;
 
             emit MidLanerCreated(requestId, msg.sender);
-        } else if (
-            keccak256(abi.encodePacked(requestType)) ==
-            keccak256(abi.encodePacked("competeSeason"))
-        ) {
-            // competeSeason
-            // two summoners compete laning against each other
-            address winner = competeLaningAndReturnWinner(
-                msg.sender,
-                s_summoners[randomWords[0] % s_summoners.length]
-            );
-
-            // clear the mapParticipantToStatus
-            for (uint i = 0; i < s_participants.length; i++) {
-                delete s_mapParticipantToStatus[s_participants[i]];
-            }
-
-            // clear the participants array
-            delete s_participants;
-            // s_participants = new address[](0);
-
-            // clear prize pool
-            s_prize = 0;
-
-            emit WinnerSelected(winner);
         } else {
             revert LoLFantasy__UnknownRequestId();
         }
     }
 
+    function joinSeason() public payable {
+        // require: msg.value > MINIMUM_JOINING_FEE
+        if (msg.value <= MINIMUM_JOINING_FEE) {
+            revert LoLFantasy__NotEnoughJoiningFee();
+        }
+        // require: can not join multiple times
+        if (s_mapParticipantToStatus[msg.sender]) {
+            revert LoLFantasy__AlreadyJoinedSeason();
+        }
+        // require: only summoners can join
+        if (s_mapSummonerToMidLaner[msg.sender].soloKillPotential == 0) {
+            revert LoLFantasy__NotSummoner();
+        }
+
+        // summoner joins the season as participant
+        s_participants.push(msg.sender);
+        s_mapParticipantToStatus[msg.sender] = true;
+    }
+
+    function competeSeason() public {
+        // require: only participants can compete
+        if (!s_mapParticipantToStatus[msg.sender]) {
+            revert LoLFantasy__NotParticipant();
+        }
+        // require: can only run when participants are more than 1
+        if (s_participants.length <= 1) {
+            revert LoLFantasy__NotEnoughParticipants();
+        }
+
+        s_gameState = LoLFantasyState.CLOSED;
+
+        address payable finalWinner = determineFinalWinner();
+
+        // clear the mapParticipantToStatus
+        for (uint i = 0; i < s_participants.length; i++) {
+            delete s_mapParticipantToStatus[s_participants[i]];
+        }
+
+        // clear the participants array
+        delete s_participants;
+        // s_participants = new address[](0);
+
+        emit WinnerSelected(finalWinner);
+
+        // give the prize to the winner
+        (bool success, ) = payable(finalWinner).call{
+            value: address(this).balance
+        }("");
+        if (!success) {
+            revert LoLFantasy__TransferFailed();
+        }
+
+        s_gameState = LoLFantasyState.OPEN;
+    }
+
     // two summoners compete laning against each other
     function competeLaningAndReturnWinner(
-        address _summoner1,
-        address _summoner2
-    ) internal view returns (address) {
+        address payable _summoner1,
+        address payable _summoner2
+    ) internal view returns (address payable) {
         // require: both summoners have created midLaner
         if (s_mapSummonerToMidLaner[_summoner1].soloKillPotential == 0) {
             revert LoLFantasy__NotCreatedMidLaner();
@@ -237,53 +267,29 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
         }
     }
 
-    function joinSeason() public payable {
-        // require: msg.value > MINIMUM_JOINING_FEE
-        if (msg.value <= MINIMUM_JOINING_FEE) {
-            revert LoLFantasy__NotEnoughJoiningFee();
-        }
-        // require: can not join multiple times
-        if (s_mapParticipantToStatus[msg.sender]) {
-            revert LoLFantasy__AlreadyJoinedSeason();
-        }
-        // require: only summoners can join
-        if (s_mapSummonerToMidLaner[msg.sender].soloKillPotential == 0) {
-            revert LoLFantasy__NotSummoner();
+    function determineFinalWinner() internal returns (address payable) {
+        while (s_participants.length > 1) {
+            address payable summoner1 = payable(s_participants[0]);
+            address payable summoner2 = payable(s_participants[1]);
+
+            address payable winner = competeLaningAndReturnWinner(
+                summoner1,
+                summoner2
+            );
+
+            removeParticipant(summoner1 == winner ? summoner2 : summoner1);
         }
 
-        // summoner joins the season as participant
-        s_participants.push(msg.sender);
-        s_mapParticipantToStatus[msg.sender] = true;
-
-        // add the prize to the prize pool
-        s_prize += msg.value;
+        return payable(s_participants[0]);
     }
 
-    function competeSeason() public {
-        // require: only participants can compete
-        if (!s_mapParticipantToStatus[msg.sender]) {
-            revert LoLFantasy__NotParticipant();
+    function removeParticipant(address participant) internal {
+        for (uint i = 0; i < s_participants.length; i++) {
+            if (s_participants[i] == participant) {
+                s_participants[i] = s_participants[s_participants.length - 1];
+                s_participants.pop();
+                break;
+            }
         }
-        // require: can only run when participants are more than 1
-        if (s_participants.length <= 1) {
-            revert LoLFantasy__NotEnoughParticipants();
-        }
-
-        // out of all the paricipants pick 1 random oponents to compete
-        s_requestId = s_vrfCoordinator.requestRandomWords(
-            VRFV2PlusClient.RandomWordsRequest({
-                keyHash: i_keyHash,
-                subId: i_subscriptionId,
-                requestConfirmations: REQUEST_CONFIRMATIONS,
-                callbackGasLimit: CALLBACK_GAS_LIMIT,
-                numWords: 1,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
-                    VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
-                )
-            })
-        );
-
-        s_requestIdToType[s_requestId] = "competeSeason";
     }
 }
