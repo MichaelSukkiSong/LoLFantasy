@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Script} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
+import {LinkToken} from "../test/mocks/LinkToken.sol";
 
 abstract contract CodeConstants {
     // Chain IDs
@@ -20,6 +21,7 @@ contract HelperConfig is CodeConstants, Script {
         address vrfCoordinator;
         bytes32 keyHash;
         uint256 subscriptionId;
+        address link;
     }
 
     mapping(uint256 => NetworkConfig) private networkConfigs;
@@ -41,7 +43,8 @@ contract HelperConfig is CodeConstants, Script {
             NetworkConfig({
                 vrfCoordinator: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
                 keyHash: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
-                subscriptionId: 0
+                subscriptionId: 0,
+                link: 0x779877A7B0D9E8603169DdbD7836e478b4624789
             });
     }
 
@@ -53,6 +56,7 @@ contract HelperConfig is CodeConstants, Script {
             GAS_PRICE,
             WEI_PER_UNIT_LINK
         );
+        LinkToken link = new LinkToken();
         vm.stopBroadcast();
 
         return
@@ -60,7 +64,8 @@ contract HelperConfig is CodeConstants, Script {
                 vrfCoordinator: address(vrfCoordinator),
                 // doesnt matter
                 keyHash: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
-                subscriptionId: 0
+                subscriptionId: 0,
+                link: address(link)
             });
     }
 }
