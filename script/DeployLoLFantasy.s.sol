@@ -28,7 +28,8 @@ contract DeployLoLFantasy is Script {
             FundSubscription fundSubscription = new FundSubscription();
             fundSubscription.fundSubscription(
                 networkConfig.vrfCoordinator,
-                networkConfig.subscriptionId
+                networkConfig.subscriptionId,
+                networkConfig.link
             );
         }
 
