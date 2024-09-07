@@ -14,7 +14,7 @@ contract DeployLoLFantasy is Script {
         deployContract();
     }
 
-    function deployContract() public returns (LoLFantasy) {
+    function deployContract() public returns (LoLFantasy, HelperConfig) {
         helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory networkConfig = helperConfig
             .getNetworkConfig();
@@ -50,6 +50,6 @@ contract DeployLoLFantasy is Script {
             address(lolFantasy)
         );
 
-        return lolFantasy;
+        return (lolFantasy, helperConfig);
     }
 }
