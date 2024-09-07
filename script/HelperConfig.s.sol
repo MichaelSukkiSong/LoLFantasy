@@ -11,9 +11,9 @@ abstract contract CodeConstants {
     uint256 public constant ANVIL_CHAIN_ID = 31337;
 
     // VRF mock constructor variables
-    uint96 public constant BASE_FEE = 1e18;
-    uint96 public constant GAS_PRICE = 2e10;
-    int256 public constant WEI_PER_UNIT_LINK = 1e18;
+    uint96 public constant BASE_FEE = 0;
+    uint96 public constant GAS_PRICE = 0;
+    int256 public constant WEI_PER_UNIT_LINK = 1;
 }
 
 contract HelperConfig is CodeConstants, Script {
@@ -22,6 +22,7 @@ contract HelperConfig is CodeConstants, Script {
         bytes32 keyHash;
         uint256 subscriptionId;
         address link;
+        // address account;
     }
 
     mapping(uint256 => NetworkConfig) private networkConfigs;
@@ -45,6 +46,7 @@ contract HelperConfig is CodeConstants, Script {
                 keyHash: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
                 subscriptionId: 0,
                 link: 0x779877A7B0D9E8603169DdbD7836e478b4624789
+                // account: 0x6b748671F2F3B1d264f554f87B64227e0Ac142ec
             });
     }
 
