@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import {HelperConfig, CodeConstants} from "./HelperConfig.s.sol";
 import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
+import {LinkToken} from "../test/mocks/LinkToken.sol";
 
 contract CreateSubscription is CodeConstants, Script {
     function createSubscriptionUsingConfig() public {
@@ -41,30 +42,29 @@ contract FundSubscription is CodeConstants, Script {
 
         fundSubscription(
             networkConfig.vrfCoordinator,
-            networkConfig.subscriptionId
+            networkConfig.subscriptionId,
+            networkConfig.link
         );
     }
 
     function fundSubscription(
         address vrfCoordinator,
-        uint256 subscriptionId
+        uint256 subscriptionId,
+        address link
     ) public {
         if (block.chainid == ANVIL_CHAIN_ID) {
             vm.startBroadcast();
             VRFCoordinatorV2_5Mock(vrfCoordinator).fundSubscription(
                 subscriptionId,
-                FUND_AMOUNT
+                FUND_AMOUNT * 100
             );
             vm.stopBroadcast();
         } else if (block.chainid == SEPOLIA_CHAIN_ID) {
-            // TODO : LINK token
-            /*
-            LINKTOKEN.transferAndCall(
-                address(COORDINATOR),
-                amount,
-                abi.encode(subId)
+            LinkToken(link).transferAndCall(
+                address(vrfCoordinator),
+                FUND_AMOUNT,
+                abi.encode(subscriptionId)
             );
-            */
         }
     }
 
