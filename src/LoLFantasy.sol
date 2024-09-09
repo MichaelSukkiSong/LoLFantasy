@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import {IVRFCoordinatorV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
+import {console} from "forge-std/console.sol";
 
 library Calculate {
     function midLanerTotalScore(
@@ -53,24 +55,25 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
 
     enum LoLFantasyState {
         OPEN,
-        CLOSED
+        CALCULATING
     }
 
     // State variables
     uint16 public constant REQUEST_CONFIRMATIONS = 3;
-    uint32 public constant CALLBACK_GAS_LIMIT = 200000;
+    uint32 public constant CALLBACK_GAS_LIMIT = 500000000;
     uint256 public constant MAX_PERCENTAGE = 100;
-    uint256 public constant MINIMUM_JOINING_FEE = 0;
+    uint256 public constant MINIMUM_JOINING_FEE = 0.01 ether;
     address private immutable i_owner;
     bytes32 private immutable i_keyHash;
     uint256 private immutable i_subscriptionId;
-    uint256 private s_requestId;
     LoLFantasyState private s_gameState;
     address[] private s_summoners;
     address[] private s_participants;
 
     // requestId => summoner
     mapping(uint256 => address) private s_mapRequestIdToSummoner;
+    // summoner => bool
+    mapping(address => bool) private s_mapSummonerToStatus;
     // summoner => MidLaner
     mapping(address => MidLaner) private s_mapSummonerToMidLaner;
     // participant => bool
@@ -95,8 +98,8 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     }
 
     function createMidLaner() public {
-        // require: dont let the same address call this function twice
-        if (s_mapSummonerToMidLaner[msg.sender].soloKillPotential != 0) {
+        // require: can not call if summoner already created midLaner
+        if (getStatusOfSummoner(msg.sender)) {
             revert LoLFantasy__AlreadyCreatedMidLaner();
         }
         // require: can only call when state is OPEN
@@ -104,10 +107,10 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             revert LoLFantasy__GameStateIsNotOpen();
         }
 
-        s_gameState = LoLFantasyState.CLOSED;
+        s_gameState = LoLFantasyState.CALCULATING;
 
         // kick off VRF request
-        s_requestId = s_vrfCoordinator.requestRandomWords(
+        uint256 s_requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: i_keyHash,
                 subId: i_subscriptionId,
@@ -151,14 +154,17 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             });
 
             // save the midLaner
-            s_mapSummonerToMidLaner[msg.sender] = midLaner;
-            s_summoners.push(msg.sender);
+            s_mapSummonerToMidLaner[
+                s_mapRequestIdToSummoner[requestId]
+            ] = midLaner;
+            s_summoners.push(s_mapRequestIdToSummoner[requestId]);
 
             s_gameState = LoLFantasyState.OPEN;
 
-            emit MidLanerCreated(requestId, msg.sender);
-        } else {
-            revert LoLFantasy__UnknownRequestId();
+            emit MidLanerCreated(
+                requestId,
+                s_mapRequestIdToSummoner[requestId]
+            );
         }
     }
 
@@ -195,7 +201,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             revert LoLFantasy__GameStateIsNotOpen();
         }
 
-        s_gameState = LoLFantasyState.CLOSED;
+        s_gameState = LoLFantasyState.CALCULATING;
 
         address payable finalWinner = determineFinalWinner();
 
@@ -274,5 +280,74 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
                 break;
             }
         }
+    }
+
+    // TESTING
+    function changeStateToCalculating() public {
+        // require: only when game state is OPEN
+        if (s_gameState != LoLFantasyState.OPEN) {
+            revert LoLFantasy__GameStateIsNotOpen();
+        }
+        // 상태만 CALCULATING으로 변경
+        s_gameState = LoLFantasyState.CALCULATING;
+    }
+
+    /************************
+             Getters
+     ************************/
+    function getOwner() public view returns (address) {
+        return i_owner;
+    }
+
+    function getKeyHash() public view returns (bytes32) {
+        return i_keyHash;
+    }
+
+    function getSubscriptionId() public view returns (uint256) {
+        return i_subscriptionId;
+    }
+
+    function getVrfCoordinator() public view returns (IVRFCoordinatorV2Plus) {
+        return s_vrfCoordinator;
+    }
+
+    function getGameState() public view returns (LoLFantasyState) {
+        return s_gameState;
+    }
+
+    function getSummoners() public view returns (address[] memory) {
+        return s_summoners;
+    }
+
+    function getParticipants() public view returns (address[] memory) {
+        return s_participants;
+    }
+
+    function getSummonerOfRequestId(
+        uint256 requestId
+    ) public view returns (address) {
+        return s_mapRequestIdToSummoner[requestId];
+    }
+
+    function getStatusOfSummoner(address summoner) public view returns (bool) {
+        return s_mapSummonerToStatus[summoner];
+    }
+
+    function getMidLanerOfSummoner(
+        address summoner
+    ) public view returns (MidLaner memory) {
+        return s_mapSummonerToMidLaner[summoner];
+    }
+
+    function getParticipantStatus(
+        address participant
+    ) public view returns (bool) {
+        return s_mapParticipantToStatus[participant];
+    }
+
+    function getRequestTypeOfRequestId(
+        uint256 requestId
+    ) public view returns (string memory) {
+        return s_requestIdToType[requestId];
     }
 }
