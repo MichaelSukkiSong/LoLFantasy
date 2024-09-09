@@ -21,6 +21,7 @@ contract LoLFantasyTest is Test {
     uint256 public constant MAX_PERCENTAGE = 100;
     uint256 public constant MINIMUM_JOINING_FEE = 0.01 ether;
     uint256 public constant STARTING_BALANCE = 100 ether;
+    uint256 public constant JOINING_FEE = 0.02 ether;
 
     address public USER = makeAddr("USER");
     address public SECOND_USER = makeAddr("SECOND_USER");
@@ -207,17 +208,17 @@ contract LoLFantasyTest is Test {
         fulfillRandomWords(1)
     {
         vm.prank(USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
         vm.expectRevert(LoLFantasy.LoLFantasy__AlreadyJoinedSeason.selector);
         vm.prank(USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
     }
 
     function test_OnlySummonersCanJoin() public {
         vm.expectRevert(LoLFantasy.LoLFantasy__NotSummoner.selector);
         vm.prank(USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
     }
 
     function test_DataStrucutreIsUpdatedProperly()
@@ -226,7 +227,7 @@ contract LoLFantasyTest is Test {
         fulfillRandomWords(1)
     {
         vm.prank(USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
         for (uint256 i = 0; i < lolFantasy.getParticipants().length; i++) {
             if (lolFantasy.getParticipants()[i] == USER) {
@@ -275,10 +276,10 @@ contract LoLFantasyTest is Test {
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
     {
         vm.prank(USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
         vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
         vm.prank(THIRD_USER);
         vm.expectRevert(LoLFantasy.LoLFantasy__NotParticipant.selector);
@@ -291,7 +292,7 @@ contract LoLFantasyTest is Test {
         fulfillRandomWords(1)
     {
         vm.prank(USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
         vm.prank(USER);
         vm.expectRevert(LoLFantasy.LoLFantasy__NotEnoughParticipants.selector);
@@ -305,10 +306,10 @@ contract LoLFantasyTest is Test {
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
     {
         vm.prank(USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
         vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: 0.02 ether}();
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
         // change state to CALCULATING manually
         // this is done as a quick fix to change game state for testing purposes
@@ -319,17 +320,100 @@ contract LoLFantasyTest is Test {
         lolFantasy.competeSeason();
     }
 
-    function test_GameStateChangesToCalculatingInCompeteSeasonFunction()
+    function test_FinalWinnerIsSelected()
         public
-    {}
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
-    function test_FinalWinnerIsSelected() public {}
+        vm.prank(SECOND_USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
-    function test_DataStructureIsCleared() public {}
+        vm.prank(USER);
+        lolFantasy.competeSeason();
 
-    function test_EventIsEmmitedAfterWinnerIsSelected() public {}
+        assert(lolFantasy.getFinalWinner() != address(0));
+    }
 
-    function test_PrizeIsGivenToWinner() public {}
+    function test_DataStructureIsCleared()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
 
-    function test_GameStateIsChangedToOpenAfterAllIsDone() public {}
+        vm.prank(SECOND_USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+
+        vm.prank(USER);
+        lolFantasy.competeSeason();
+
+        assertEq(lolFantasy.getParticipantStatus(USER), false);
+        assertEq(lolFantasy.getParticipantStatus(SECOND_USER), false);
+        assert(lolFantasy.getParticipants().length == 0);
+    }
+
+    function test_EventIsEmmitedAfterWinnerIsSelected()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+
+        vm.prank(SECOND_USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+
+        vm.expectEmit(true, false, false, false);
+        // because this is a test environment, the values are deterministic and the USER always win
+        emit WinnerSelected(USER);
+        vm.prank(USER);
+        lolFantasy.competeSeason();
+    }
+
+    function test_PrizeIsGivenToWinner()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+
+        vm.prank(SECOND_USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+
+        uint256 initialBalance = USER.balance;
+
+        vm.prank(USER);
+        lolFantasy.competeSeason();
+
+        uint256 finalBalance = USER.balance;
+
+        assertEq(finalBalance, initialBalance + JOINING_FEE * 2);
+    }
+
+    function test_GameStateIsChangedToOpenAfterAllIsDone()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+
+        vm.prank(SECOND_USER);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+
+        vm.prank(USER);
+        lolFantasy.competeSeason();
+
+        assertEq(uint256(lolFantasy.getGameState()), 0);
+    }
 }
