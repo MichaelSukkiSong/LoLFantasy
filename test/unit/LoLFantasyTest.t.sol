@@ -19,10 +19,12 @@ contract LoLFantasyTest is Test {
     uint16 public constant REQUEST_CONFIRMATIONS = 3;
     uint32 public constant CALLBACK_GAS_LIMIT = 500000000;
     uint256 public constant MAX_PERCENTAGE = 100;
-    uint256 public constant MINIMUM_JOINING_FEE = 0;
+    uint256 public constant MINIMUM_JOINING_FEE = 0.01 ether;
     uint256 public constant STARTING_BALANCE = 100 ether;
 
     address public USER = makeAddr("USER");
+    address public SECOND_USER = makeAddr("SECOND_USER");
+    address public THIRD_USER = makeAddr("THIRD_USER");
 
     // Events
     event MidLanerCreated(uint256 indexed requestId, address indexed summoner);
@@ -41,6 +43,8 @@ contract LoLFantasyTest is Test {
         link = networkConfig.link;
 
         vm.deal(USER, STARTING_BALANCE);
+        vm.deal(SECOND_USER, STARTING_BALANCE);
+        vm.deal(THIRD_USER, STARTING_BALANCE);
     }
 
     function test_PublicConstantVariablesReturnsCorrectValues() public view {
@@ -155,7 +159,7 @@ contract LoLFantasyTest is Test {
 
         // assert: emits event
         vm.expectEmit(true, true, false, false);
-        emit MidLanerCreated(requestId, vrfCoordinator);
+        emit MidLanerCreated(requestId, USER);
         VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
             requestId,
             address(lolFantasy)
@@ -165,15 +169,11 @@ contract LoLFantasyTest is Test {
         // TODO(done): soloKillPotential 값이 0 나오는중 -> 해결 주소가 잘못됬었음. vrfCoordinator가 콜하니 vrfCoordinator의 주소여야함
 
         // assert: midlaner is saved
-        assert(
-            lolFantasy
-                .getMidLanerOfSummoner(vrfCoordinator)
-                .soloKillPotential != 0
-        );
+        assert(lolFantasy.getMidLanerOfSummoner(USER).soloKillPotential != 0);
         // assert: summoners is saved
         for (uint256 i = 0; i < lolFantasy.getSummoners().length; i++) {
-            if (lolFantasy.getSummoners()[i] == vrfCoordinator) {
-                assertEq(lolFantasy.getSummoners()[i], vrfCoordinator);
+            if (lolFantasy.getSummoners()[i] == USER) {
+                assertEq(lolFantasy.getSummoners()[i], USER);
             }
         }
         // assert: state is changed to open
@@ -195,27 +195,129 @@ contract LoLFantasyTest is Test {
     /*      joinSeason     */
     /***********************/
 
-    function test_RevertIfJoiningFeeIsLessThanMinimum() public {
+    function test_RevertIfJoiningFeeIsLessThanMinimum() public midLanerCreated {
         vm.prank(USER);
         vm.expectRevert(LoLFantasy.LoLFantasy__NotEnoughJoiningFee.selector);
         lolFantasy.joinSeason{value: 0.001 ether}();
     }
 
-    function test_CannotJoinMultipleTimes() public {}
+    function test_CannotJoinMultipleTimes()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
 
-    function test_OnlySummonersCanJoin() public {}
+        vm.expectRevert(LoLFantasy.LoLFantasy__AlreadyJoinedSeason.selector);
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
+    }
 
-    function test_DataStrucutreIsUpdatedProperly() public {}
+    function test_OnlySummonersCanJoin() public {
+        vm.expectRevert(LoLFantasy.LoLFantasy__NotSummoner.selector);
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
+    }
+
+    function test_DataStrucutreIsUpdatedProperly()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
+
+        for (uint256 i = 0; i < lolFantasy.getParticipants().length; i++) {
+            if (lolFantasy.getParticipants()[i] == USER) {
+                assertEq(lolFantasy.getParticipants()[i], USER);
+            }
+        }
+
+        assert(lolFantasy.getParticipantStatus(USER));
+    }
+
+    modifier fulfillRandomWords(uint256 reqId) {
+        uint256 requestId = reqId;
+
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
+            requestId,
+            address(lolFantasy)
+        );
+
+        _;
+    }
 
     /**************************/
     /*      competeSeason     */
     /**************************/
 
-    function test_OnlyParticipantsCanCompete() public {}
+    modifier midLanerCreatedAndFulfillRandomWords(address user, uint256 reqId) {
+        vm.prank(user);
+        lolFantasy.createMidLaner();
+        vm.warp(block.timestamp + 1);
+        vm.roll(block.number + 1);
 
-    function test_CanOnlyRunWhenParticipantsAreMoreThanOne() public {}
+        uint256 requestId = reqId;
 
-    function test_CanOnlyCallWhenStateIsOpenInCompeteSeasonFunction() public {}
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
+            requestId,
+            address(lolFantasy)
+        );
+
+        _;
+    }
+
+    function test_OnlyParticipantsCanCompete()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
+
+        vm.prank(SECOND_USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
+
+        vm.prank(THIRD_USER);
+        vm.expectRevert(LoLFantasy.LoLFantasy__NotParticipant.selector);
+        lolFantasy.competeSeason();
+    }
+
+    function test_CanOnlyRunWhenParticipantsAreMoreThanOne()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
+
+        vm.prank(USER);
+        vm.expectRevert(LoLFantasy.LoLFantasy__NotEnoughParticipants.selector);
+        lolFantasy.competeSeason();
+    }
+
+    function test_CanOnlyCallWhenStateIsOpenInCompeteSeasonFunction()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+    {
+        vm.prank(USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
+
+        vm.prank(SECOND_USER);
+        lolFantasy.joinSeason{value: 0.02 ether}();
+
+        // change state to CALCULATING manually
+        // this is done as a quick fix to change game state for testing purposes
+        lolFantasy.changeStateToCalculating();
+
+        vm.prank(USER);
+        vm.expectRevert(LoLFantasy.LoLFantasy__GameStateIsNotOpen.selector);
+        lolFantasy.competeSeason();
+    }
 
     function test_GameStateChangesToCalculatingInCompeteSeasonFunction()
         public
