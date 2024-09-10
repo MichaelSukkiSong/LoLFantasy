@@ -24,6 +24,7 @@ contract LoLFantasyTest is Test {
     uint256 public constant MINIMUM_JOINING_FEE = 0.01 ether;
     uint256 public constant STARTING_BALANCE = 100 ether;
     uint256 public constant JOINING_FEE = 0.02 ether;
+    uint256 public constant WINNER_LOLTOKEN_PRIZE = 100;
 
     address public USER = makeAddr("USER");
     address public SECOND_USER = makeAddr("SECOND_USER");
@@ -415,6 +416,6 @@ contract LoLFantasyTest is Test {
 
         uint256 finalToken = loLToken.balanceOf(USER);
 
-        assertEq(finalToken - initialToken, 1000);
+        assertEq(finalToken - initialToken, WINNER_LOLTOKEN_PRIZE);
     }
 }

@@ -64,6 +64,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     uint32 public constant CALLBACK_GAS_LIMIT = 500000000;
     uint256 public constant MAX_PERCENTAGE = 100;
     uint256 public constant MINIMUM_JOINING_FEE = 0.01 ether;
+    uint256 public constant WINNER_LOLTOKEN_PRIZE = 100;
     address private immutable i_owner;
     bytes32 private immutable i_keyHash;
     uint256 private immutable i_subscriptionId;
@@ -237,10 +238,14 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
         }
 
         // give winner LoLToken
-        s_loLToken.transfer(s_finalWinner, 1000);
+        s_loLToken.transfer(s_finalWinner, WINNER_LOLTOKEN_PRIZE);
 
         s_gameState = LoLFantasyState.OPEN;
     }
+
+    /************************
+        Internal Functions
+     ************************/
 
     // two summoners compete laning against each other
     function competeLaningAndReturnWinner(
@@ -297,7 +302,9 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
         }
     }
 
-    // TESTING
+    /************************
+             Testing
+     ************************/
     function changeStateToCalculating() public {
         // require: only when game state is OPEN
         if (s_gameState != LoLFantasyState.OPEN) {
