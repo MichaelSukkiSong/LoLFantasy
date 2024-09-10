@@ -69,6 +69,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     LoLFantasyState private s_gameState;
     address[] private s_summoners;
     address[] private s_participants;
+    address payable s_finalWinner;
 
     // requestId => summoner
     mapping(uint256 => address) private s_mapRequestIdToSummoner;
@@ -203,21 +204,26 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
 
         s_gameState = LoLFantasyState.CALCULATING;
 
-        address payable finalWinner = determineFinalWinner();
+        // store the initial participants
+        uint256 initialParticipantsLength = s_participants.length;
+        address[] memory initialParticipants = s_participants;
 
-        // clear the mapParticipantToStatus
-        for (uint i = 0; i < s_participants.length; i++) {
-            delete s_mapParticipantToStatus[s_participants[i]];
+        // calculate the final winner
+        s_finalWinner = determineFinalWinner();
+
+        // clear mapParticipantToStatus
+        for (uint i = 0; i < initialParticipantsLength; i++) {
+            delete s_mapParticipantToStatus[initialParticipants[i]];
         }
 
-        // clear the participants array
+        // clear participants array
         delete s_participants;
         // s_participants = new address[](0);
 
-        emit WinnerSelected(finalWinner);
+        emit WinnerSelected(s_finalWinner);
 
         // give the prize to the winner
-        (bool success, ) = payable(finalWinner).call{
+        (bool success, ) = payable(s_finalWinner).call{
             value: address(this).balance
         }("");
         if (!success) {
@@ -349,5 +355,9 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
         uint256 requestId
     ) public view returns (string memory) {
         return s_requestIdToType[requestId];
+    }
+
+    function getFinalWinner() public view returns (address payable) {
+        return s_finalWinner;
     }
 }
