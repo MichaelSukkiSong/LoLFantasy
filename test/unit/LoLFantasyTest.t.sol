@@ -72,24 +72,19 @@ contract LoLFantasyTest is Test {
     /*      createMidLaner     */
     /***************************/
 
-    // 지금 이 함수에서는 이 테스트 못하는것 같음 fulfillrandomwords에서 만들어지고 할듯?
-    // function test_CannotCallFunctionIfSummonerAlreadyCreatedMidLaner() public {
-    //     // 첫 호출로 MidLaner 생성
-    //     vm.prank(USER);
-    //     lolFantasy.createMidLaner();
-    //     vm.warp(block.timestamp + 1);
-    //     vm.roll(block.number + 1);
+    function test_CannotCallFunctionIfSummonerAlreadyCreatedMidLaner()
+        public
+        midLanerCreated
+    {
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
+            1,
+            address(lolFantasy)
+        );
 
-    //     // 강제로 gameState를 OPEN으로 변경 (상태를 수동으로 설정)
-    //      forge inspect LoLFantasy storageLayout
-    //      cast storage <contract address> <storage slot number>
-    //     // vm.store(address(lolFantasy), bytes32(uint256(2)), bytes32(uint256(0)));
-
-    //     // 이미 생성된 MidLaner로 인해 에러 발생 기대
-    //     vm.prank(USER);
-    //     vm.expectRevert(LoLFantasy.LoLFantasy__AlreadyCreatedMidLaner.selector);
-    //     lolFantasy.createMidLaner();
-    // }
+        vm.prank(USER);
+        vm.expectRevert(LoLFantasy.LoLFantasy__AlreadyCreatedMidLaner.selector);
+        lolFantasy.createMidLaner();
+    }
 
     function test_CanOnlyCallWhenStateIsOpenInCreateMidLanerFunction() public {
         vm.prank(USER);
@@ -177,6 +172,8 @@ contract LoLFantasyTest is Test {
                 assertEq(lolFantasy.getSummoners()[i], USER);
             }
         }
+        // assert: summoner status is changed to true
+        assert(lolFantasy.getStatusOfSummoner(USER));
         // assert: state is changed to open
         assertEq(uint256(lolFantasy.getGameState()), 0);
     }
@@ -314,6 +311,12 @@ contract LoLFantasyTest is Test {
         // change state to CALCULATING manually
         // this is done as a quick fix to change game state for testing purposes
         lolFantasy.changeStateToCalculating();
+        /*
+            Other ways to change gameState manually:
+            1. forge inspect LoLFantasy storageLayout
+            2. cast storage <contract address> <storage slot number>
+            vm.store(address(lolFantasy), bytes32(uint256(2)), bytes32(uint256(0)));
+         */
 
         vm.prank(USER);
         vm.expectRevert(LoLFantasy.LoLFantasy__GameStateIsNotOpen.selector);
