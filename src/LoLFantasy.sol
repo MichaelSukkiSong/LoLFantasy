@@ -5,6 +5,7 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import {IVRFCoordinatorV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
 import {console} from "forge-std/console.sol";
+import {LoLToken} from "./LoLToken.sol";
 
 library Calculate {
     function midLanerTotalScore(
@@ -70,6 +71,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     address[] private s_summoners;
     address[] private s_participants;
     address payable s_finalWinner;
+    LoLToken private s_loLToken;
 
     // requestId => summoner
     mapping(uint256 => address) private s_mapRequestIdToSummoner;
@@ -96,6 +98,9 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
         i_keyHash = _keyHash;
         i_subscriptionId = _subscriptionId;
         i_owner = msg.sender;
+
+        // LoLToken instance
+        s_loLToken = new LoLToken();
     }
 
     function createMidLaner() public {
@@ -231,6 +236,9 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             revert LoLFantasy__TransferFailed();
         }
 
+        // give winner LoLToken
+        s_loLToken.transfer(s_finalWinner, 1000);
+
         s_gameState = LoLFantasyState.OPEN;
     }
 
@@ -360,5 +368,9 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
 
     function getFinalWinner() public view returns (address payable) {
         return s_finalWinner;
+    }
+
+    function getLoLToken() public view returns (LoLToken) {
+        return s_loLToken;
     }
 }
