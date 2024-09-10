@@ -159,6 +159,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
                 s_mapRequestIdToSummoner[requestId]
             ] = midLaner;
             s_summoners.push(s_mapRequestIdToSummoner[requestId]);
+            s_mapSummonerToStatus[s_mapRequestIdToSummoner[requestId]] = true;
 
             s_gameState = LoLFantasyState.OPEN;
 
