@@ -33,7 +33,7 @@ contract DeployLoLFantasy is Script {
             );
         }
 
-        // deploy contract
+        // deploy contract TODO:(and LoLToken to avoid duplicate broadcast error)
         vm.startBroadcast();
         lolFantasy = new LoLFantasy(
             networkConfig.vrfCoordinator,
