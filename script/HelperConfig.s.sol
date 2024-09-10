@@ -4,10 +4,11 @@ pragma solidity ^0.8.26;
 import {Script} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import {LinkToken} from "../test/mocks/LinkToken.sol";
+import {console} from "forge-std/console.sol";
 
 abstract contract CodeConstants {
     // Chain IDs
-    uint256 public constant SEPOLIA_CHAIN_ID = 11133111;
+    uint256 public constant SEPOLIA_CHAIN_ID = 11155111;
     uint256 public constant ANVIL_CHAIN_ID = 31337;
 
     // VRF mock constructor variables
