@@ -266,18 +266,20 @@ contract LoLFantasyTest is Test {
         _;
     }
 
+    modifier joinSeason(address user) {
+        vm.prank(user);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+        _;
+    }
+
     function test_OnlyParticipantsCanCompete()
         public
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
     {
-        vm.prank(USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
-        vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
         vm.prank(THIRD_USER);
         vm.expectRevert(LoLFantasy.LoLFantasy__NotParticipant.selector);
         lolFantasy.competeSeason();
@@ -287,10 +289,8 @@ contract LoLFantasyTest is Test {
         public
         midLanerCreated
         fulfillRandomWords(1)
+        joinSeason(USER)
     {
-        vm.prank(USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
         vm.prank(USER);
         vm.expectRevert(LoLFantasy.LoLFantasy__NotEnoughParticipants.selector);
         lolFantasy.competeSeason();
@@ -301,13 +301,9 @@ contract LoLFantasyTest is Test {
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
     {
-        vm.prank(USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
-        vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
         // change state to CALCULATING manually
         // this is done as a quick fix to change game state for testing purposes
         lolFantasy.changeStateToCalculating();
@@ -328,13 +324,9 @@ contract LoLFantasyTest is Test {
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
     {
-        vm.prank(USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
-        vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
         vm.prank(USER);
         lolFantasy.competeSeason();
 
@@ -346,13 +338,9 @@ contract LoLFantasyTest is Test {
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
     {
-        vm.prank(USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
-        vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
         vm.prank(USER);
         lolFantasy.competeSeason();
 
@@ -366,13 +354,9 @@ contract LoLFantasyTest is Test {
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
     {
-        vm.prank(USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
-        vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
         vm.expectEmit(true, false, false, false);
         // because this is a test environment, the values are deterministic and the USER always win
         emit WinnerSelected(USER);
@@ -385,13 +369,9 @@ contract LoLFantasyTest is Test {
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
     {
-        vm.prank(USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
-        vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
         uint256 initialBalance = USER.balance;
 
         vm.prank(USER);
@@ -407,13 +387,9 @@ contract LoLFantasyTest is Test {
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
     {
-        vm.prank(USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
-        vm.prank(SECOND_USER);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-
         vm.prank(USER);
         lolFantasy.competeSeason();
 
