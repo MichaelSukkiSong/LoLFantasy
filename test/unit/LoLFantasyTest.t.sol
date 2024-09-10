@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Test, console} from "forge-std/Test.sol";
 import {LoLFantasy} from "../../src/LoLFantasy.sol";
+import {LoLToken} from "../../src/LoLToken.sol";
 import {DeployLoLFantasy} from "../../script/DeployLoLFantasy.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
@@ -10,6 +11,7 @@ import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VR
 contract LoLFantasyTest is Test {
     DeployLoLFantasy deployLoLFantasy;
     LoLFantasy lolFantasy;
+    LoLToken loLToken;
     HelperConfig helperConfig;
 
     address vrfCoordinator;
@@ -42,6 +44,8 @@ contract LoLFantasyTest is Test {
         keyHash = networkConfig.keyHash;
         subscriptionId = networkConfig.subscriptionId;
         link = networkConfig.link;
+
+        loLToken = lolFantasy.getLoLToken();
 
         vm.deal(USER, STARTING_BALANCE);
         vm.deal(SECOND_USER, STARTING_BALANCE);
@@ -394,5 +398,23 @@ contract LoLFantasyTest is Test {
         lolFantasy.competeSeason();
 
         assertEq(uint256(lolFantasy.getGameState()), 0);
+    }
+
+    function test_WinnerEarnsLoLTokens()
+        public
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
+    {
+        uint256 initialToken = loLToken.balanceOf(USER);
+
+        vm.prank(USER);
+        lolFantasy.competeSeason();
+
+        uint256 finalToken = loLToken.balanceOf(USER);
+
+        assertEq(finalToken - initialToken, 1000);
     }
 }
