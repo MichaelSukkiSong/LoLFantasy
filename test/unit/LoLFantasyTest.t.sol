@@ -5,10 +5,10 @@ import {Test, console} from "forge-std/Test.sol";
 import {LoLFantasy} from "../../src/LoLFantasy.sol";
 import {LoLToken} from "../../src/LoLToken.sol";
 import {DeployLoLFantasy} from "../../script/DeployLoLFantasy.s.sol";
-import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {HelperConfig, CodeConstants} from "../../script/HelperConfig.s.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 
-contract LoLFantasyTest is Test {
+contract LoLFantasyTest is CodeConstants, Test {
     DeployLoLFantasy deployLoLFantasy;
     LoLFantasy lolFantasy;
     LoLToken loLToken;
@@ -18,6 +18,7 @@ contract LoLFantasyTest is Test {
     bytes32 keyHash;
     uint256 subscriptionId;
     address link;
+    address account;
     uint16 public constant REQUEST_CONFIRMATIONS = 3;
     uint32 public constant CALLBACK_GAS_LIMIT = 500000000;
     uint256 public constant MAX_PERCENTAGE = 100;
@@ -34,6 +35,54 @@ contract LoLFantasyTest is Test {
     event MidLanerCreated(uint256 indexed requestId, address indexed summoner);
     event WinnerSelected(address indexed winner);
 
+    modifier midLanerCreated() {
+        vm.prank(USER);
+        lolFantasy.createMidLaner();
+        vm.warp(block.timestamp + 1);
+        vm.roll(block.number + 1);
+        _;
+    }
+
+    modifier fulfillRandomWords(uint256 reqId) {
+        uint256 requestId = reqId;
+
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
+            requestId,
+            address(lolFantasy)
+        );
+
+        _;
+    }
+
+    modifier midLanerCreatedAndFulfillRandomWords(address user, uint256 reqId) {
+        vm.prank(user);
+        lolFantasy.createMidLaner();
+        vm.warp(block.timestamp + 1);
+        vm.roll(block.number + 1);
+
+        uint256 requestId = reqId;
+
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
+            requestId,
+            address(lolFantasy)
+        );
+
+        _;
+    }
+
+    modifier joinSeason(address user) {
+        vm.prank(user);
+        lolFantasy.joinSeason{value: JOINING_FEE}();
+        _;
+    }
+
+    modifier skipFork() {
+        if (block.chainid != ANVIL_CHAIN_ID) {
+            return;
+        }
+        _;
+    }
+
     function setUp() public {
         deployLoLFantasy = new DeployLoLFantasy();
         (lolFantasy, helperConfig) = deployLoLFantasy.deployContract();
@@ -45,6 +94,7 @@ contract LoLFantasyTest is Test {
         keyHash = networkConfig.keyHash;
         subscriptionId = networkConfig.subscriptionId;
         link = networkConfig.link;
+        account = networkConfig.account;
 
         loLToken = lolFantasy.getLoLToken();
 
@@ -61,7 +111,7 @@ contract LoLFantasyTest is Test {
     }
 
     function test_OwnerIsProperlySet() public view {
-        assertEq(lolFantasy.getOwner(), msg.sender);
+        assertEq(lolFantasy.getOwner(), account);
     }
 
     function test_ConstructorParametersAreProperlySet() public {
@@ -79,6 +129,7 @@ contract LoLFantasyTest is Test {
 
     function test_CannotCallFunctionIfSummonerAlreadyCreatedMidLaner()
         public
+        skipFork
         midLanerCreated
     {
         VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
@@ -91,10 +142,11 @@ contract LoLFantasyTest is Test {
         lolFantasy.createMidLaner();
     }
 
-    function test_CanOnlyCallWhenStateIsOpenInCreateMidLanerFunction() public {
-        vm.prank(USER);
-        lolFantasy.createMidLaner();
-
+    function test_CanOnlyCallWhenStateIsOpenInCreateMidLanerFunction()
+        public
+        skipFork
+        midLanerCreated
+    {
         vm.prank(USER);
         vm.expectRevert(LoLFantasy.LoLFantasy__GameStateIsNotOpen.selector);
         lolFantasy.createMidLaner();
@@ -102,37 +154,26 @@ contract LoLFantasyTest is Test {
 
     function test_GameStateChangesToCalculatingInCreateMidLanerFunction()
         public
+        skipFork
+        midLanerCreated
     {
-        vm.prank(USER);
-        lolFantasy.createMidLaner();
-
         assertEq(uint256(lolFantasy.getGameState()), 1);
     }
 
-    function test_SummonerIsSavedToDatabaseAsIntended() public {
-        vm.prank(USER);
-        lolFantasy.createMidLaner();
-        vm.warp(block.timestamp + 1);
-        vm.roll(block.number + 1);
-
+    function test_SummonerIsSavedToDatabaseAsIntended()
+        public
+        skipFork
+        midLanerCreated
+    {
         assertEq(USER, lolFantasy.getSummonerOfRequestId(1));
     }
 
-    function test_RequestTypeIsSavedAsIntended() public {
-        vm.prank(USER);
-        lolFantasy.createMidLaner();
-        vm.warp(block.timestamp + 1);
-        vm.roll(block.number + 1);
-
+    function test_RequestTypeIsSavedAsIntended()
+        public
+        skipFork
+        midLanerCreated
+    {
         assertEq("createMidLaner", lolFantasy.getRequestTypeOfRequestId(1));
-    }
-
-    modifier midLanerCreated() {
-        vm.prank(USER);
-        lolFantasy.createMidLaner();
-        vm.warp(block.timestamp + 1);
-        vm.roll(block.number + 1);
-        _;
     }
 
     /*******************************/
@@ -141,7 +182,7 @@ contract LoLFantasyTest is Test {
 
     function test_FulfillrandomWordsCanOnlyBeCalledAfterCreateMidLanerFunctionIsCalled(
         uint256 randomRequestId
-    ) public {
+    ) public skipFork {
         vm.expectRevert(VRFCoordinatorV2_5Mock.InvalidRequest.selector);
         // we are pretending to be the coordinator,
         // in the actual corordinator, not anybody can call this function
@@ -154,6 +195,7 @@ contract LoLFantasyTest is Test {
 
     function test_FulfillrandomWordsCreatesAMidLanerSaveToDatabaseChangesStateAndEmitsEvent()
         public
+        skipFork
         midLanerCreated
     {
         uint256 requestId = 1;
@@ -184,7 +226,7 @@ contract LoLFantasyTest is Test {
     }
 
     // similar to "test_FulfillrandomWordsCanOnlyBeCalledAfterCreateMidLanerFunctionIsCalled"
-    function test_RevertsIfRequestTypeIsNotValid() public {
+    function test_RevertsIfRequestTypeIsNotValid() public skipFork {
         uint256 requestId = 1;
 
         vm.expectRevert(VRFCoordinatorV2_5Mock.InvalidRequest.selector);
@@ -198,7 +240,11 @@ contract LoLFantasyTest is Test {
     /*      joinSeason     */
     /***********************/
 
-    function test_RevertIfJoiningFeeIsLessThanMinimum() public midLanerCreated {
+    function test_RevertIfJoiningFeeIsLessThanMinimum()
+        public
+        skipFork
+        midLanerCreated
+    {
         vm.prank(USER);
         vm.expectRevert(LoLFantasy.LoLFantasy__NotEnoughJoiningFee.selector);
         lolFantasy.joinSeason{value: 0.001 ether}();
@@ -206,6 +252,7 @@ contract LoLFantasyTest is Test {
 
     function test_CannotJoinMultipleTimes()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
     {
@@ -225,6 +272,7 @@ contract LoLFantasyTest is Test {
 
     function test_DataStrucutreIsUpdatedProperly()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
     {
@@ -240,45 +288,13 @@ contract LoLFantasyTest is Test {
         assert(lolFantasy.getParticipantStatus(USER));
     }
 
-    modifier fulfillRandomWords(uint256 reqId) {
-        uint256 requestId = reqId;
-
-        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
-            requestId,
-            address(lolFantasy)
-        );
-
-        _;
-    }
-
     /**************************/
     /*      competeSeason     */
     /**************************/
 
-    modifier midLanerCreatedAndFulfillRandomWords(address user, uint256 reqId) {
-        vm.prank(user);
-        lolFantasy.createMidLaner();
-        vm.warp(block.timestamp + 1);
-        vm.roll(block.number + 1);
-
-        uint256 requestId = reqId;
-
-        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
-            requestId,
-            address(lolFantasy)
-        );
-
-        _;
-    }
-
-    modifier joinSeason(address user) {
-        vm.prank(user);
-        lolFantasy.joinSeason{value: JOINING_FEE}();
-        _;
-    }
-
     function test_OnlyParticipantsCanCompete()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
@@ -292,6 +308,7 @@ contract LoLFantasyTest is Test {
 
     function test_CanOnlyRunWhenParticipantsAreMoreThanOne()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         joinSeason(USER)
@@ -303,6 +320,7 @@ contract LoLFantasyTest is Test {
 
     function test_CanOnlyCallWhenStateIsOpenInCompeteSeasonFunction()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
@@ -326,6 +344,7 @@ contract LoLFantasyTest is Test {
 
     function test_FinalWinnerIsSelected()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
@@ -340,6 +359,7 @@ contract LoLFantasyTest is Test {
 
     function test_DataStructureIsCleared()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
@@ -356,6 +376,7 @@ contract LoLFantasyTest is Test {
 
     function test_EventIsEmmitedAfterWinnerIsSelected()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
@@ -371,6 +392,7 @@ contract LoLFantasyTest is Test {
 
     function test_PrizeIsGivenToWinner()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
@@ -389,6 +411,7 @@ contract LoLFantasyTest is Test {
 
     function test_GameStateIsChangedToOpenAfterAllIsDone()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
@@ -403,6 +426,7 @@ contract LoLFantasyTest is Test {
 
     function test_WinnerEarnsLoLTokens()
         public
+        skipFork
         midLanerCreated
         fulfillRandomWords(1)
         midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
