@@ -23,18 +23,22 @@ contract DeployLoLFantasy is Script {
             // create subscription
             CreateSubscription createSubscription = new CreateSubscription();
             networkConfig.subscriptionId = createSubscription
-                .createSubscription(networkConfig.vrfCoordinator);
+                .createSubscription(
+                    networkConfig.vrfCoordinator,
+                    networkConfig.account
+                );
             // fund subscription
             FundSubscription fundSubscription = new FundSubscription();
             fundSubscription.fundSubscription(
                 networkConfig.vrfCoordinator,
                 networkConfig.subscriptionId,
-                networkConfig.link
+                networkConfig.link,
+                networkConfig.account
             );
         }
 
-        // deploy contract TODO:(and LoLToken to avoid duplicate broadcast error)
-        vm.startBroadcast();
+        // deploy contract
+        vm.startBroadcast(networkConfig.account);
         lolFantasy = new LoLFantasy(
             networkConfig.vrfCoordinator,
             networkConfig.keyHash,
@@ -47,7 +51,8 @@ contract DeployLoLFantasy is Script {
         addConsumer.addConsumer(
             networkConfig.vrfCoordinator,
             networkConfig.subscriptionId,
-            address(lolFantasy)
+            address(lolFantasy),
+            networkConfig.account
         );
 
         return (lolFantasy, helperConfig);
