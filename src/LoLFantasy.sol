@@ -40,6 +40,12 @@ struct MidLaner {
     uint256 dodgeSuccessProbability; // number between 1-100
 }
 
+struct Bet {
+    address better;
+    uint256 amount;
+    address predictedWinner;
+}
+
 contract LoLFantasy is VRFConsumerBaseV2Plus {
     // errors
     error LoLFantasy__AlreadyCreatedMidLaner();
@@ -84,6 +90,8 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     mapping(address => bool) private s_mapParticipantToStatus;
     // requestId => requestType
     mapping(uint256 => string) private s_requestIdToType;
+    // summoner => Bet[]
+    mapping(address => Bet[]) private bets; // 각 참가자가 한 배팅을 저장
 
     // Events
     event MidLanerCreated(uint256 indexed requestId, address indexed summoner);
@@ -244,6 +252,83 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     }
 
     /************************
+          Token Betting
+     ************************/
+
+    function placeBet(address predictedWinner, uint256 amount) public {
+        // require: have to be a summoner
+        if (s_mapSummonerToMidLaner[msg.sender].soloKillPotential == 0) {
+            revert LoLFantasy__NotSummoner();
+        }
+        // require: predictedWinner has to be a participant
+        if (!s_mapParticipantToStatus[predictedWinner]) {
+            revert LoLFantasy__NotParticipant();
+        }
+
+        // data of bet saved
+        bets[msg.sender].push(
+            Bet({
+                better: msg.sender,
+                amount: amount,
+                predictedWinner: predictedWinner
+            })
+        );
+
+        // transfer LoLToken to contract
+        require(
+            s_loLToken.transfer(address(this), amount),
+            "Token transfer failed"
+        );
+    }
+
+    function distributeWinnings(address actualWinner) public {
+        // require: only owner can call
+        if (msg.sender != i_owner) {
+            revert LoLFantasy__NotOwner();
+        }
+        // require: actualWinner has to be a participant
+        if (!s_mapParticipantToStatus[actualWinner]) {
+            revert LoLFantasy__NotParticipant();
+        }
+
+        uint256 totalBets = s_loLToken.balanceOf(address(this)); // total amount of bets
+        uint256 totalWinningBets = 0; // total amount of "winning" bets
+
+        // calculate total amount of winning bets
+        for (uint i = 0; i < s_summoners.length; i++) {
+            address summoner = s_summoners[i];
+            for (uint j = 0; j < bets[summoner].length; j++) {
+                Bet memory bet = bets[summoner][j];
+                if (bet.predictedWinner == actualWinner) {
+                    totalWinningBets += bet.amount;
+                }
+            }
+        }
+
+        // distribute the winnings based on the proportion of winning bets
+        for (uint i = 0; i < s_summoners.length; i++) {
+            address summoner = s_summoners[i];
+            for (uint j = 0; j < bets[summoner].length; j++) {
+                Bet memory bet = bets[summoner][j];
+                if (bet.predictedWinner == actualWinner) {
+                    // reward = (bet.amount * totalBets) / totalWinningBets
+                    uint256 reward = (bet.amount * totalBets) /
+                        totalWinningBets;
+                    s_loLToken.transfer(bet.better, reward);
+                }
+            }
+        }
+
+        // initialize bets mapping
+        for (uint i = 0; i < s_summoners.length; i++) {
+            delete bets[s_summoners[i]];
+        }
+
+        // initialize LoLToken balance of contract (and give it back to the owner)
+        s_loLToken.transfer(i_owner, s_loLToken.balanceOf(address(this)));
+    }
+
+    /************************
         Internal Functions
      ************************/
 
@@ -379,5 +464,11 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
 
     function getLoLToken() public view returns (LoLToken) {
         return s_loLToken;
+    }
+
+    function getBetsOfSummoner(
+        address summoner
+    ) public view returns (Bet[] memory) {
+        return bets[summoner];
     }
 }
