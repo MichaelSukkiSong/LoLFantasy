@@ -42,7 +42,8 @@ contract DeployLoLFantasy is Script {
         lolFantasy = new LoLFantasy(
             networkConfig.vrfCoordinator,
             networkConfig.keyHash,
-            networkConfig.subscriptionId
+            networkConfig.subscriptionId,
+            networkConfig.lolToken
         );
         vm.stopBroadcast();
 
