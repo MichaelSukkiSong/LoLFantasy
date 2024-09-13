@@ -11,4 +11,12 @@ contract LoLToken is ERC20 {
     constructor() ERC20("LoLToken", "LoL", 18) {
         _mint(msg.sender, INITIAL_SUPPLY);
     }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function burn(address from, uint256 amount) external {
+        _burn(from, amount);
+    }
 }
