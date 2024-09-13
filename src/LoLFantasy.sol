@@ -59,6 +59,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     error LoLFantasy__UnknownRequestId();
     error LoLFantasy__NotEnoughParticipants();
     error LoLFantasy__TransferFailed();
+    error LoLFantasy__LoLTokenTransferFailed();
 
     enum LoLFantasyState {
         OPEN,
@@ -78,7 +79,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     address[] private s_summoners;
     address[] private s_participants;
     address payable s_finalWinner;
-    LoLToken private s_loLToken;
+    LoLToken private s_lolToken;
 
     // requestId => summoner
     mapping(uint256 => address) private s_mapRequestIdToSummoner;
@@ -102,14 +103,15 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     constructor(
         address _vrfCoordinator,
         bytes32 _keyHash,
-        uint256 _subscriptionId
+        uint256 _subscriptionId,
+        address _loLToken
     ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         i_keyHash = _keyHash;
         i_subscriptionId = _subscriptionId;
         i_owner = msg.sender;
 
         // LoLToken instance
-        s_loLToken = new LoLToken();
+        s_lolToken = LoLToken(_loLToken);
     }
 
     function createMidLaner() public {
@@ -246,7 +248,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
         }
 
         // give winner LoLToken
-        s_loLToken.transfer(s_finalWinner, WINNER_LOLTOKEN_PRIZE);
+        s_lolToken.mint(s_finalWinner, WINNER_LOLTOKEN_PRIZE);
 
         s_gameState = LoLFantasyState.OPEN;
     }
@@ -274,11 +276,18 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             })
         );
 
+        // console.log("msg.sender in placeBet:", msg.sender); // 0xF921F4FA82620d8D2589971798c51aeD0C02c81a
+        // console.log("Transferring to address:", address(this)); // 0x62c20Aa1e0272312BC100b4e23B4DC1Ed96dD7D1
+
         // transfer LoLToken to contract
-        require(
-            s_loLToken.transfer(address(this), amount),
-            "Token transfer failed"
+        bool success = s_lolToken.transferFrom(
+            msg.sender,
+            address(this),
+            amount
         );
+        if (!success) {
+            revert LoLFantasy__LoLTokenTransferFailed();
+        }
     }
 
     function distributeWinnings(address actualWinner) public {
@@ -291,7 +300,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             revert LoLFantasy__NotParticipant();
         }
 
-        uint256 totalBets = s_loLToken.balanceOf(address(this)); // total amount of bets
+        uint256 totalBets = s_lolToken.balanceOf(address(this)); // total amount of bets
         uint256 totalWinningBets = 0; // total amount of "winning" bets
 
         // calculate total amount of winning bets
@@ -314,7 +323,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
                     // reward = (bet.amount * totalBets) / totalWinningBets
                     uint256 reward = (bet.amount * totalBets) /
                         totalWinningBets;
-                    s_loLToken.transfer(bet.better, reward);
+                    s_lolToken.transfer(bet.better, reward);
                 }
             }
         }
@@ -324,8 +333,8 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
             delete bets[s_summoners[i]];
         }
 
-        // initialize LoLToken balance of contract (and give it back to the owner)
-        s_loLToken.transfer(i_owner, s_loLToken.balanceOf(address(this)));
+        // burn the remaining LoLToken in this contract address
+        s_lolToken.burn(address(this), s_lolToken.balanceOf(address(this)));
     }
 
     /************************
@@ -463,7 +472,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     }
 
     function getLoLToken() public view returns (LoLToken) {
-        return s_loLToken;
+        return s_lolToken;
     }
 
     function getBetsOfSummoner(
