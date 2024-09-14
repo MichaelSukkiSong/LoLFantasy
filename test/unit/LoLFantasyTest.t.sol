@@ -11,7 +11,6 @@ import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VR
 contract LoLFantasyTest is CodeConstants, Test {
     DeployLoLFantasy deployLoLFantasy;
     LoLFantasy lolFantasy;
-    LoLToken loLToken;
     HelperConfig helperConfig;
 
     address vrfCoordinator;
@@ -19,13 +18,16 @@ contract LoLFantasyTest is CodeConstants, Test {
     uint256 subscriptionId;
     address link;
     address account;
+    address lolToken;
     uint16 public constant REQUEST_CONFIRMATIONS = 3;
     uint32 public constant CALLBACK_GAS_LIMIT = 500000000;
     uint256 public constant MAX_PERCENTAGE = 100;
     uint256 public constant MINIMUM_JOINING_FEE = 0.01 ether;
     uint256 public constant STARTING_BALANCE = 100 ether;
     uint256 public constant JOINING_FEE = 0.02 ether;
+    uint256 public constant INITIAL_LOLTOKEN_BALANCE = 1000;
     uint256 public constant WINNER_LOLTOKEN_PRIZE = 100;
+    uint256 public constant BET_LOLTOKEN_AMOUNT = 50;
 
     address public USER = makeAddr("USER");
     address public SECOND_USER = makeAddr("SECOND_USER");
@@ -95,12 +97,36 @@ contract LoLFantasyTest is CodeConstants, Test {
         subscriptionId = networkConfig.subscriptionId;
         link = networkConfig.link;
         account = networkConfig.account;
-
-        loLToken = lolFantasy.getLoLToken();
+        lolToken = networkConfig.lolToken;
 
         vm.deal(USER, STARTING_BALANCE);
         vm.deal(SECOND_USER, STARTING_BALANCE);
         vm.deal(THIRD_USER, STARTING_BALANCE);
+
+        // give users some tokens
+        vm.prank(account);
+        LoLToken(lolToken).transfer(USER, INITIAL_LOLTOKEN_BALANCE);
+        vm.prank(account);
+        LoLToken(lolToken).transfer(SECOND_USER, INITIAL_LOLTOKEN_BALANCE);
+        vm.prank(account);
+        LoLToken(lolToken).transfer(THIRD_USER, INITIAL_LOLTOKEN_BALANCE);
+
+        // approve lolFantasy to spend tokens on behalf of users
+        vm.prank(USER);
+        LoLToken(lolToken).approve(
+            address(lolFantasy),
+            INITIAL_LOLTOKEN_BALANCE
+        );
+        vm.prank(SECOND_USER);
+        LoLToken(lolToken).approve(
+            address(lolFantasy),
+            INITIAL_LOLTOKEN_BALANCE
+        );
+        vm.prank(THIRD_USER);
+        LoLToken(lolToken).approve(
+            address(lolFantasy),
+            INITIAL_LOLTOKEN_BALANCE
+        );
     }
 
     function test_PublicConstantVariablesReturnsCorrectValues() public view {
@@ -433,13 +459,156 @@ contract LoLFantasyTest is CodeConstants, Test {
         joinSeason(USER)
         joinSeason(SECOND_USER)
     {
-        uint256 initialToken = loLToken.balanceOf(USER);
+        uint256 initialToken = LoLToken(lolToken).balanceOf(USER);
 
         vm.prank(USER);
         lolFantasy.competeSeason();
 
-        uint256 finalToken = loLToken.balanceOf(USER);
+        uint256 finalToken = LoLToken(lolToken).balanceOf(USER);
 
         assertEq(finalToken - initialToken, WINNER_LOLTOKEN_PRIZE);
+    }
+
+    /*********************/
+    /*      placeBet     */
+    /*********************/
+
+    function test_HaveToBeSummonerToPlaceBet()
+        public
+        skipFork
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
+    {
+        vm.expectRevert(LoLFantasy.LoLFantasy__NotSummoner.selector);
+        vm.prank(THIRD_USER);
+        lolFantasy.placeBet(USER, BET_LOLTOKEN_AMOUNT);
+    }
+
+    function test_PredictedWinnerHasToBeParticipant()
+        public
+        skipFork
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
+    {
+        vm.expectRevert(LoLFantasy.LoLFantasy__NotParticipant.selector);
+        vm.prank(USER);
+        lolFantasy.placeBet(THIRD_USER, BET_LOLTOKEN_AMOUNT);
+    }
+
+    function test_DataOfBetIsSaved()
+        public
+        skipFork
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
+    {
+        // console.log(
+        //     "USER's LoLToken balance before placeBet:",
+        //     LoLToken(lolToken).balanceOf(USER)
+        // );
+        // console.log(
+        //     "LoLFantasy contract balance before placeBet:",
+        //     LoLToken(lolToken).balanceOf(address(lolFantasy))
+        // );
+
+        vm.prank(USER);
+        lolFantasy.placeBet(SECOND_USER, BET_LOLTOKEN_AMOUNT);
+
+        assertEq(
+            lolFantasy.getBetsOfSummoner(USER)[0].amount,
+            BET_LOLTOKEN_AMOUNT
+        );
+        assertEq(lolFantasy.getBetsOfSummoner(USER)[0].better, USER);
+
+        assertEq(
+            lolFantasy.getBetsOfSummoner(USER)[0].predictedWinner,
+            SECOND_USER
+        );
+    }
+
+    function test_TransferTokensToContract()
+        public
+        skipFork
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
+    {
+        // console.log(address(lolFantasy)); //0x62c20Aa1e0272312BC100b4e23B4DC1Ed96dD7D1
+        // console.log("dd", msg.sender); //0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38
+        // console.log("ddd", address(this)); // 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496
+        // console.log("USER", USER); // 0xF921F4FA82620d8D2589971798c51aeD0C02c81a
+
+        uint256 initialBalance = LoLToken(lolToken).balanceOf(
+            address(lolFantasy)
+        );
+
+        vm.prank(USER);
+        lolFantasy.placeBet(SECOND_USER, BET_LOLTOKEN_AMOUNT);
+
+        uint256 finalBalance = LoLToken(lolToken).balanceOf(
+            address(lolFantasy)
+        );
+
+        assertEq(finalBalance - initialBalance, BET_LOLTOKEN_AMOUNT);
+    }
+
+    /*******************************/
+    /*      distributeWinnings     */
+    /*******************************/
+
+    // function test_OnlyOwnerCanDistributeWinnings() public {}
+
+    // function test_ActualWinnerHasToBeParticipant() public {}
+
+    // function test_CalculateTotalWinningBet() public {}
+
+    function test_WinnerGetsCorrectAmountOfReward()
+        public
+        skipFork
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
+    {
+        vm.prank(USER);
+        lolFantasy.placeBet(SECOND_USER, BET_LOLTOKEN_AMOUNT);
+
+        // assume that SECOND_USER wins
+        vm.prank(account);
+        lolFantasy.distributeWinnings(SECOND_USER);
+
+        assertEq(LoLToken(lolToken).balanceOf(USER), INITIAL_LOLTOKEN_BALANCE);
+    }
+
+    // function test_InitializeBetsDataStructure() public {}
+
+    function test_InitializeTokenBalanceOfContract()
+        public
+        skipFork
+        midLanerCreated
+        fulfillRandomWords(1)
+        midLanerCreatedAndFulfillRandomWords(SECOND_USER, 2)
+        joinSeason(USER)
+        joinSeason(SECOND_USER)
+    {
+        vm.prank(USER);
+        lolFantasy.placeBet(SECOND_USER, BET_LOLTOKEN_AMOUNT);
+
+        // assume that SECOND_USER wins
+        vm.prank(account);
+        lolFantasy.distributeWinnings(SECOND_USER);
+
+        assertEq(LoLToken(lolToken).balanceOf(address(lolFantasy)), 0);
     }
 }
