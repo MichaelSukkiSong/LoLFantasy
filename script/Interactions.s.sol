@@ -6,6 +6,7 @@ import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VR
 import {HelperConfig, CodeConstants} from "./HelperConfig.s.sol";
 import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 import {LinkToken} from "../test/mocks/LinkToken.sol";
+import {LoLNft} from "../src/LoLNft.sol";
 
 contract CreateSubscription is CodeConstants, Script {
     function createSubscriptionUsingConfig() public {
@@ -129,5 +130,31 @@ contract AddConsumer is Script {
 
         // add as consumer
         addConsumerUsingConfig(mostRecentlyDeployed);
+    }
+}
+
+contract MintLoLNft is Script {
+    string public constant FAKER =
+        "https://ipfs.io/ipfs/QmbUizF88PWRLv2WHn8yegXpTY9WXvgnuu7EB4iEDmRGZt";
+    string public constant SHOWMAKER =
+        "https://ipfs.io/ipfs/QmYqHMDenySgjihh89rSH4EsMea6ogot1SNKNcsXCFc9CD";
+    string public constant SCOUT =
+        "https://ipfs.io/ipfs/QmcQHWWdoxXBQXtVtMpq2seohjWTcfj7JLoTNSn1UkvFWB";
+    string public constant ZEKA =
+        "https://ipfs.io/ipfs/QmRNBESTZFxT3zQj2TU2BM5uMDn5XqkxByqcAv3vfzbat3";
+
+    function run() public {
+        address mostRecentlyDeployed = DevOpsTools.get_most_recent_deployment(
+            "LoLNft",
+            block.chainid
+        );
+
+        mintNftOnContract(mostRecentlyDeployed);
+    }
+
+    function mintNftOnContract(address contractAddress) public {
+        vm.startBroadcast();
+        LoLNft(contractAddress).mint(FAKER);
+        vm.stopBroadcast();
     }
 }
