@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import {LinkToken} from "../test/mocks/LinkToken.sol";
 import {LoLToken} from "../src/LoLToken.sol";
+import {LoLNft} from "../src/LoLNft.sol";
 import {console} from "forge-std/console.sol";
 
 abstract contract CodeConstants {
@@ -26,6 +27,7 @@ contract HelperConfig is CodeConstants, Script {
         address link;
         address account;
         address lolToken;
+        address lolNft;
     }
 
     mapping(uint256 => NetworkConfig) private networkConfigs;
@@ -50,7 +52,8 @@ contract HelperConfig is CodeConstants, Script {
                 subscriptionId: 0,
                 link: 0x779877A7B0D9E8603169DdbD7836e478b4624789,
                 account: 0x6b748671F2F3B1d264f554f87B64227e0Ac142ec,
-                lolToken: 0x6b3c7B0e16dFbdafC2354Bfd51dc88023A99804C
+                lolToken: 0x6b3c7B0e16dFbdafC2354Bfd51dc88023A99804C,
+                lolNft: 0xdB8fB91dB401488428D3Ff65Df18db1406f419c7
             });
     }
 
@@ -63,7 +66,8 @@ contract HelperConfig is CodeConstants, Script {
             WEI_PER_UNIT_LINK
         );
         LinkToken link = new LinkToken();
-        LoLToken lolToken = new LoLToken();
+        LoLToken loLToken = new LoLToken();
+        LoLNft loLNft = new LoLNft();
         vm.stopBroadcast();
 
         return
@@ -74,7 +78,8 @@ contract HelperConfig is CodeConstants, Script {
                 subscriptionId: 0,
                 link: address(link),
                 account: 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38,
-                lolToken: address(lolToken)
+                lolToken: address(loLToken),
+                lolNft: address(loLNft)
             });
     }
 }
