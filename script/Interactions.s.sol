@@ -149,12 +149,23 @@ contract MintLoLNft is Script {
             block.chainid
         );
 
-        mintNftOnContract(mostRecentlyDeployed);
+        mintNftUsingConfig(mostRecentlyDeployed);
     }
 
-    function mintNftOnContract(address contractAddress) public {
-        vm.startBroadcast();
+    function mintNftUsingConfig(address contractAddress) public {
+        HelperConfig helperConfig = new HelperConfig();
+        HelperConfig.NetworkConfig memory networkConfig = helperConfig
+            .getNetworkConfig();
+
+        mintNft(contractAddress, networkConfig.account);
+    }
+
+    function mintNft(address contractAddress, address account) public {
+        vm.startBroadcast(account);
         LoLNft(contractAddress).mint(FAKER);
+        LoLNft(contractAddress).mint(SHOWMAKER);
+        LoLNft(contractAddress).mint(SCOUT);
+        LoLNft(contractAddress).mint(ZEKA);
         vm.stopBroadcast();
     }
 }
