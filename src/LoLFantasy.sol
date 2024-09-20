@@ -6,6 +6,7 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
 import {IVRFCoordinatorV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
 import {console} from "forge-std/console.sol";
 import {LoLToken} from "./LoLToken.sol";
+import {LoLNft} from "./LoLNft.sol";
 
 library Calculate {
     function midLanerTotalScore(
@@ -80,6 +81,7 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
     address[] private s_participants;
     address payable s_finalWinner;
     LoLToken private s_lolToken;
+    LoLNft private s_lolNft;
 
     // requestId => summoner
     mapping(uint256 => address) private s_mapRequestIdToSummoner;
@@ -104,7 +106,8 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
         address _vrfCoordinator,
         bytes32 _keyHash,
         uint256 _subscriptionId,
-        address _loLToken
+        address _loLToken,
+        address _loLNft
     ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         i_keyHash = _keyHash;
         i_subscriptionId = _subscriptionId;
@@ -112,6 +115,8 @@ contract LoLFantasy is VRFConsumerBaseV2Plus {
 
         // LoLToken instance
         s_lolToken = LoLToken(_loLToken);
+        // LoLNft instance
+        s_lolNft = LoLNft(_loLNft);
     }
 
     function createMidLaner() public {

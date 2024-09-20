@@ -43,7 +43,8 @@ contract DeployLoLFantasy is Script {
             networkConfig.vrfCoordinator,
             networkConfig.keyHash,
             networkConfig.subscriptionId,
-            networkConfig.lolToken
+            networkConfig.lolToken,
+            networkConfig.lolNft
         );
         vm.stopBroadcast();
 
