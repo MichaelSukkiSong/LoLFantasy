@@ -1,66 +1,49 @@
-## Foundry
+# LoLFantasy
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+**LoLFantasy** is a decentralized application (dApp) where players can create mid-laner characters, join fantasy seasons, and compete for rewards. It leverages Chainlink VRF for randomness in stat generation and includes a token-based betting system for players to predict winners in competitive seasons.
 
-Foundry consists of:
+## How It Works
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- **Create Mid-Laner:** Players create a mid-laner character by using Chainlink VRF to generate stats. The character will have various attributes that will influence their success in fantasy seasons.
+- **Join Season:** Once a mid-laner is created, players can join the season by paying a joining fee and compete with others.
+- **Compete and Win:** At the end of each season, one player is chosen as the winner based on their character's performance.
+- **Betting System:** Players can bet on which character will win the season using the game's native token, LoLToken.
 
-## Documentation
+## Smart Contracts
 
-https://book.getfoundry.sh/
+The project consists of three main smart contracts:
 
-## Usage
+1. **LoLFantasy.sol:** This contract manages the creation of mid-laners, season competitions, and the token betting system. It integrates with Chainlink VRF for randomness and handles rewards in the form of LoLToken and native currency.
 
-### Build
+2. **LoLToken.sol:** The ERC20 token contract that serves as the native currency of the game. It is used for placing bets and rewarding the winners.
 
-```shell
-$ forge build
-```
+3. **LoLNft.sol:** A non-fungible token (NFT) contract that represents ownership of unique assets within the game, such as special rewards or limited-edition characters.
 
-### Test
+## Features
 
-```shell
-$ forge test
-```
+- **Random Stat Generation:** Chainlink VRF ensures that mid-laner stats are generated randomly and fairly.
+- **Token Betting:** Players can use LoLToken to place bets on the outcome of the season.
+- **VRF Integration:** Chainlink VRF provides secure randomness for stat generation and winner selection.
+- **Season Management:** The contract controls the state of the game, moving between open and calculating states during different phases of the season.
+- **Fund Distribution:** Winners are rewarded with LoLToken and ETH.
 
-### Format
+## Tech Stack
 
-```shell
-$ forge fmt
-```
+- **Frontend:** React, Next.js, ethers.js
+- **Smart Contracts:** Solidity (Foundry)
+- **Blockchain:** Sepolia Testnet
+- **Oracle:** Chainlink VRF
+- **Tools:** Foundry, Alchemy
 
-### Gas Snapshots
+## Development & Testing
 
-```shell
-$ forge snapshot
-```
+The project utilizes unit and integration tests to ensure the reliability of the smart contracts. The use of Foundry helps automate and streamline the testing process.
 
-### Anvil
+## Setup and Installation
 
-```shell
-$ anvil
-```
+To run the project locally, follow these steps:
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+```bash
+git clone https://github.com/yourusername/lolfantasy.git
+cd lolfantasy
 ```
