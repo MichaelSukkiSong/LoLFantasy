@@ -29,15 +29,15 @@ The project consists of three main smart contracts:
 
 ## Tech Stack
 
-- **Frontend:** React, Next.js, ethers.js
 - **Smart Contracts:** Solidity (Foundry)
 - **Blockchain:** Sepolia Testnet
 - **Oracle:** Chainlink VRF
+- **library:** foundry-devops, solmate
 - **Tools:** Foundry, Alchemy
 
 ## Development & Testing
 
-The project utilizes unit and integration tests to ensure the reliability of the smart contracts. The use of Foundry helps automate and streamline the testing process.
+The project utilizes unit and integration tests to ensure the reliability of the smart contracts. The primary objective of this project is to serve as a practical learning experience, enabling me to enhance my development skills in the areas of Solidity, ERC20 token implementation, and integrating betting mechanics in a decentralized manner.
 
 ## Setup and Installation
 
